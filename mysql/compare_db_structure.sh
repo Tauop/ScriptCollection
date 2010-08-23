@@ -14,10 +14,13 @@ to_db=
 to_user=
 to_pass=
 
+table_prefix=
+
 SET_LOG_FILE "/tmp/check_db_structure"
 
 MESSAGE --no-log "Ce script a pour objectif de comparer les structures de deux bases de données MySQL."
 MESSAGE --no-log "Nous comparons une base A avec une base B, en vous indiquant les différences."
+BR
 
 # ------------------------------------------------------------------------------------------------------
 MESSAGE "Récolte d'information sur la base A"
@@ -25,12 +28,16 @@ ASK from_host        "IP du serveur ? "
 ASK from_user        "nom d'utilisateur ? "
 ASK --pass from_pass "mot de passe ? "
 ASK from_db          "nom de la base ? "
+BR
 
 MESSAGE "Récolte d'information sur la base B"
 ASK to_host        "IP du serveur [${from_host}] ? "     "${from_host}"
 ASK to_user        "nom d'utilisateur [${from_user}] ? " "${from_user}"
 ASK --pass to_pass "mot de passe ? "
 ASK to_db          "nom de la base [${from_db}] ? "      "${from_db}"
+BR
+
+ASK --allow-empty table_prefix "Prefix des tables à comparer ? "
 
 from_opt="--host ${from_host} --db ${from_db} --user ${from_user} --pass ${from_pass}"
 to_opt="--host ${to_host} --db ${to_db} --user ${to_user} --pass ${to_pass}"
@@ -58,8 +65,13 @@ echo ". Verification de la liste des tables"
 from_table_list=$( MYSQL_GET_TABLES ${from_opt} )
 to_table_list=$( MYSQL_GET_TABLES ${to_opt} )
 
+if [ -n "${table_prefix}" ]; then
+  from_table_list=$( echo "${from_table_list}" | grep "^${table_prefix}" )
+  to_table_list=$(   echo "${to_table_list}"   | grep "^${table_prefix}" )
+fi
+
 echo "${from_table_list}" | sort -u > ${FROM_TMP_FILE}
-echo "${to_table_list}" | sort -u > ${TO_TMP_FILE}
+echo "${to_table_list}"   | sort -u > ${TO_TMP_FILE}
 
 added_tables=$(   diff -u ${FROM_TMP_FILE} ${TO_TMP_FILE} | grep '^+' | grep -v -- '+++' | sed -e 's/^+//' | tr $'\n' ' ' )
 deleted_tables=$( diff -u ${FROM_TMP_FILE} ${TO_TMP_FILE} | grep '^-' | grep -v -- '---' | sed -e 's/^-//' | tr $'\n' ' ' )
