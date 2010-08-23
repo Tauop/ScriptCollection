@@ -1,4 +1,30 @@
 #!/bin/bash
+#
+# Copyright (c) 2006-2010 Linagora
+# http://github.com/Tauop/ScriptCollection
+#
+# ScriptCollection is free software, you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2 of
+# the License, or (at your option) any later version.
+#
+# ScriptCollection is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# README ---------------------------------------------------------------------
+# this script is used to compare two database structure. For example, it can
+# be used to compare pre-production and production database for modifications.
+#
+# Usage: ./compare_db_structure.sh
+# Author: Patrick Guiran <pguiran@linagora.com>
+#
+# Note : Depends on ScriptHelper (http://github.com/Tauop/ScriptHelper), which
+#        has to be present in ../lib directory
 
 . ../lib/functions.lib.sh
 SOURCE ../lib/mysql.lib.sh
@@ -18,26 +44,23 @@ table_prefix=
 
 SET_LOG_FILE "/tmp/check_db_structure"
 
-MESSAGE --no-log "Ce script a pour objectif de comparer les structures de deux bases de données MySQL."
-MESSAGE --no-log "Nous comparons une base A avec une base B, en vous indiquant les différences."
-BR
-
 # ------------------------------------------------------------------------------------------------------
-MESSAGE "Récolte d'information sur la base A"
-ASK from_host        "IP du serveur ? "
-ASK from_user        "nom d'utilisateur ? "
-ASK --pass from_pass "mot de passe ? "
-ASK from_db          "nom de la base ? "
+MESSAGE "First database information"
+ASK from_host        "MySQL host ? "
+ASK from_user        "User login ? "
+ASK --pass from_pass "User password ? "
+ASK from_db          "Database name ? "
 BR
 
-MESSAGE "Récolte d'information sur la base B"
-ASK to_host        "IP du serveur [${from_host}] ? "     "${from_host}"
-ASK to_user        "nom d'utilisateur [${from_user}] ? " "${from_user}"
-ASK --pass to_pass "mot de passe ? "
-ASK to_db          "nom de la base [${from_db}] ? "      "${from_db}"
+MESSAGE "Second database information"
+ASK to_host        "MySQL host [${from_host}] ? "     "${from_host}"
+ASK to_user        "User login [${from_user}] ? " "${from_user}"
+ASK --pass to_pass "User password ? "
+ASK to_db          "Database name [${from_db}] ? "      "${from_db}"
 BR
 
-ASK --allow-empty table_prefix "Prefix des tables à comparer ? "
+ASK --allow-empty table_prefix "Prefix of the table to compare (empty = compare all tables) ? "
+BR
 
 from_opt="--host ${from_host} --db ${from_db} --user ${from_user} --pass ${from_pass}"
 to_opt="--host ${to_host} --db ${to_db} --user ${to_user} --pass ${to_pass}"
@@ -60,7 +83,7 @@ ROLLBACK() {
 }
 
 # ------------------------------------------------------------------------------------------------------
-echo ". Verification de la liste des tables"
+MESSAGE ". Check tables list"
 
 from_table_list=$( MYSQL_GET_TABLES ${from_opt} )
 to_table_list=$( MYSQL_GET_TABLES ${to_opt} )
@@ -79,14 +102,14 @@ added_tables=${added_tables%% }
 deleted_tables=${deleted_tables%% }
 
 if [ -n "${added_tables}" ]; then
-  echo "  [Erreur] Tables presentes dans ${to_db} mais pas dans ${from_db} : ${added_tables// /,}"
+  ERROR "[Table mismatch] Tables '${added_tables// /,}' exist(s) in database ${to_db} but not in database ${from_db}"
 fi
 if [ -n "${deleted_tables}" ]; then
-  echo "  [Erreur] Tables presentes dans ${from_db} mais pas dans ${to_db} : ${deleted_tables// /,}"
+  ERROR "[Table mismatch] Tables '${deleted_tables// /,}' exist(s) in database ${from_db} but not in database ${to_db}"
 fi
 
 # ------------------------------------------------------------------------------------------------------
-echo ". Verification des tables"
+MESSAGE ". Check tables structure"
 
 common_table_list=$( (echo "${from_table_list}"; echo "${to_table_list}" ) | sort -u | tr $'\n' ' ')
 common_table_list=" ${common_table_list} "
@@ -113,10 +136,10 @@ for table in ${common_table_list}; do
     deleted_fields=${deleted_fields%% }
 
     if [ -n "${added_fields}" ]; then
-      echo "  [Erreur] Champs \"${added_fields// /,}\" presents dans ${to_db}.${table} mais pas dans ${from_db}.${table}"
+      ERROR "[Field missing] Field \"${added_fields// /,}\" in table ${to_db}.${table} not present in table ${from_db}.${table}"
     fi
     if [ -n "${deleted_fields}"  ]; then
-      echo "  [Erreur] Champs \"${deleted_fields// /,}\" presents dans ${from_db}.${table} mais pas dans ${to_db}.${table}"
+      ERROR "[Field missing] Field \"${deleted_fields// /,}\" in table ${from_db}.${table} not present in table ${to_db}.${table}"
     fi
     for field in ${added_fields}; do
       common_fields=${common_fields/ ${field} / }
@@ -135,13 +158,15 @@ for table in ${common_table_list}; do
     to_field_simple_type=$(   echo "${to_field_type}" | sed -e 's/[(].*[)]$//' )
 
     if [ "${from_field_simple_type}" != "${to_field_simple_type}" ]; then
-        echo "  [Erreur - pb de typage] ${table}.${field} --> (${from_db}) ${from_field_simple_type} != ${to_field_simple_type} (${to_db})"
+        ERROR "[Field type mismatch] ${table}.${field} --> (${from_db}) ${from_field_simple_type} != ${to_field_simple_type} (${to_db})"
     else
       if [ "${from_field_type}" != "${to_field_type}" ]; then
-        echo "  [Warning]  pb de taille : ${table}.${field} => (${from_db}) ${from_field_type} != ${to_field_type} (${to_db})"
+        WARNING "[Field size mismatch] ${table}.${field} => (${from_db}) ${from_field_type} != ${to_field_type} (${to_db})"
       fi
     fi
   done
 done
 
 ROLLBACK
+
+MESSAGE "All check finished !"
