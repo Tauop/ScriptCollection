@@ -45,14 +45,14 @@ table_prefix=
 SET_LOG_FILE "/tmp/check_db_structure"
 
 # ------------------------------------------------------------------------------------------------------
-MESSAGE "First database information"
+MSG "First database information"
 ASK from_host        "MySQL host ? "
 ASK from_user        "User login ? "
 ASK --pass from_pass "User password ? "
 ASK from_db          "Database name ? "
 BR
 
-MESSAGE "Second database information"
+MSG "Second database information"
 ASK to_host        "MySQL host [${from_host}] ? "     "${from_host}"
 ASK to_user        "User login [${from_user}] ? " "${from_user}"
 ASK --pass to_pass "User password ? "
@@ -83,7 +83,7 @@ ROLLBACK() {
 }
 
 # ------------------------------------------------------------------------------------------------------
-MESSAGE ". Check tables list"
+MSG ". Check tables list"
 
 from_table_list=$( MYSQL_GET_TABLES ${from_opt} )
 to_table_list=$( MYSQL_GET_TABLES ${to_opt} )
@@ -109,7 +109,7 @@ if [ -n "${deleted_tables}" ]; then
 fi
 
 # ------------------------------------------------------------------------------------------------------
-MESSAGE ". Check tables structure"
+MSG ". Check tables structure"
 
 common_table_list=$( (echo "${from_table_list}"; echo "${to_table_list}" ) | sort -u | tr $'\n' ' ')
 common_table_list=" ${common_table_list} "
@@ -158,7 +158,7 @@ for table in ${common_table_list}; do
     to_field_simple_type=$(   echo "${to_field_type}" | sed -e 's/[(].*[)]$//' )
 
     if [ "${from_field_simple_type}" != "${to_field_simple_type}" ]; then
-        ERROR "[Field type mismatch] ${table}.${field} --> (${from_db}) ${from_field_simple_type} != ${to_field_simple_type} (${to_db})"
+      ERROR "[Field type mismatch] ${table}.${field} --> (${from_db}) ${from_field_simple_type} != ${to_field_simple_type} (${to_db})"
     else
       if [ "${from_field_type}" != "${to_field_type}" ]; then
         WARNING "[Field size mismatch] ${table}.${field} => (${from_db}) ${from_field_type} != ${to_field_type} (${to_db})"
@@ -169,4 +169,4 @@ done
 
 ROLLBACK
 
-MESSAGE "All check finished !"
+MSG "All check finished !"
