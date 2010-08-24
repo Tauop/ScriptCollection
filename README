@@ -3,3 +3,9 @@
 ScriptCollection is a project where I put several shell script I use.
 
 It depends on ScriptHelper, avariable at http://github.com/Tauop/ScriptHelper
+
+== List of scripts
+
+mysql/ : collection of MySQL script
+  compare_db_structure.sh : compare tables structure of two database
+  check_rails_db.sh : check foreign key of a rails database
