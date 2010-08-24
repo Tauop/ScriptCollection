@@ -84,6 +84,7 @@ ROLLBACK() {
 
 # ------------------------------------------------------------------------------------------------------
 MSG ". Check tables list"
+MSG_INDENT_INC
 
 from_table_list=$( MYSQL_GET_TABLES ${from_opt} )
 to_table_list=$( MYSQL_GET_TABLES ${to_opt} )
@@ -107,9 +108,11 @@ fi
 if [ -n "${deleted_tables}" ]; then
   ERROR "[Table mismatch] Tables '${deleted_tables// /,}' exist(s) in database ${from_db} but not in database ${to_db}"
 fi
+MSG_INDENT_DEC
 
 # ------------------------------------------------------------------------------------------------------
 MSG ". Check tables structure"
+MSG_INDENT_INC
 
 common_table_list=$( (echo "${from_table_list}"; echo "${to_table_list}" ) | sort -u | tr $'\n' ' ')
 common_table_list=" ${common_table_list} "
@@ -166,6 +169,7 @@ for table in ${common_table_list}; do
     fi
   done
 done
+MSG_INDENT_DEC
 
 ROLLBACK
 
